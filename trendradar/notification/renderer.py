@@ -560,3 +560,44 @@ def _render_rss_section_markdown(rss_items: list) -> str:
         text_content += "\n"
 
     return text_content.rstrip("\n")
+
+
+def render_markpost_content(
+    report_data: Dict,
+    update_info: Optional[Dict] = None,
+    mode: str = "daily",
+    reverse_content_order: bool = False,
+    get_time_func: Optional[Callable[[], datetime]] = None,
+) -> str:
+    return render_dingtalk_content(
+        report_data=report_data,
+        update_info=update_info,
+        mode=mode,
+        reverse_content_order=reverse_content_order,
+        get_time_func=get_time_func,
+    )
+
+
+def render_feishu_brief(
+    report_data: Dict,
+    report_type: str,
+    post_link: str,
+    update_info: Optional[Dict] = None,
+) -> str:
+    total_titles = sum(
+        len(stat["titles"]) for stat in report_data.get("stats", []) if stat.get("count", 0) > 0
+    )
+    brief_content = (
+        f"📊 **{report_type}**\n\n统计了 {total_titles} 条新闻，发现 {len(report_data.get('stats', []))} 个热点词汇。"
+    )
+    if report_data.get("total_new_count", 0) > 0:
+        brief_content += f" 新增 {report_data['total_new_count']} 条相关新闻。"
+
+    message_content = f"{brief_content}\n\n[**点击查看完整报告 →**]({post_link})\n\n"
+
+    if update_info:
+        message_content += (
+            f"\nTrendRadar 发现新版本 {update_info['remote_version']}，当前 {update_info['current_version']}"
+        )
+
+    return message_content

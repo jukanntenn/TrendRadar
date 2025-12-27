@@ -74,6 +74,108 @@ SMTP_CONFIGS = {
 }
 
 
+def build_markpost_link(markpost_url: str, content_id: str) -> str:
+    normalized = (markpost_url or "").rstrip("/")
+    if "/" not in normalized:
+        return f"{normalized}/{content_id}"
+    base = normalized.rsplit("/", 1)[0]
+    return f"{base}/{content_id}"
+
+
+def upload_to_markpost(
+    markpost_url: str,
+    body_markdown: str,
+    title: Optional[str] = None,
+    proxy_url: Optional[str] = None,
+    timeout: int = 30,
+) -> Optional[Dict]:
+    headers = {"Content-Type": "application/json"}
+    proxies = None
+    if proxy_url:
+        proxies = {"http": proxy_url, "https": proxy_url}
+
+    upload_url = (markpost_url or "").strip().rstrip("/")
+    if not upload_url:
+        print("Markpost 上传失败：未配置 MARKPOST_URL")
+        return None
+    payload = {"body": body_markdown}
+    if title:
+        payload["title"] = title
+
+    try:
+        response = requests.post(
+            upload_url, headers=headers, json=payload, proxies=proxies, timeout=timeout
+        )
+        if response.status_code != 200:
+            error_msg = response.text if response.text else f"状态码：{response.status_code}"
+            print(f"Markpost 上传失败：{error_msg}")
+            return None
+
+        result = response.json()
+        if result.get("error"):
+            print(f"Markpost 上传失败：{result.get('error')}")
+            return None
+
+        if not result.get("id"):
+            print("Markpost 上传失败：返回缺少 id")
+            return None
+
+        return result
+    except Exception as e:
+        print(f"Markpost 上传出错：{e}")
+        return None
+
+
+def send_to_feishu_brief(
+    webhook_url: str,
+    brief_markdown: str,
+    report_type: str,
+    proxy_url: Optional[str] = None,
+    account_label: str = "",
+    timeout: int = 30,
+) -> bool:
+    headers = {"Content-Type": "application/json"}
+    proxies = None
+    if proxy_url:
+        proxies = {"http": proxy_url, "https": proxy_url}
+
+    log_prefix = f"飞书{account_label}" if account_label else "飞书"
+
+    payload = {
+        "msg_type": "interactive",
+        "card": {
+            "elements": [
+                {
+                    "tag": "markdown",
+                    "content": brief_markdown,
+                }
+            ]
+        },
+    }
+
+    try:
+        response = requests.post(
+            webhook_url, headers=headers, json=payload, proxies=proxies, timeout=timeout
+        )
+        if response.status_code != 200:
+            print(
+                f"{log_prefix}简报发送失败 [{report_type}]，状态码：{response.status_code}"
+            )
+            return False
+
+        result = response.json()
+        if result.get("StatusCode") == 0 or result.get("code") == 0:
+            print(f"{log_prefix}简报发送成功 [{report_type}]")
+            return True
+
+        error_msg = result.get("msg") or result.get("StatusMessage", "未知错误")
+        print(f"{log_prefix}简报发送失败 [{report_type}]，错误：{error_msg}")
+        return False
+    except Exception as e:
+        print(f"{log_prefix}简报发送出错 [{report_type}]：{e}")
+        return False
+
+
 def send_to_feishu(
     webhook_url: str,
     report_data: Dict,

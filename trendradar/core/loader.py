@@ -275,6 +275,8 @@ def _load_webhook_config(config_data: Dict) -> Dict:
     generic = channels.get("generic_webhook", {})
 
     return {
+        # Markpost
+        "MARKPOST_URL": _get_env_str("MARKPOST_URL") or webhooks.get("markpost_url", ""),
         # 飞书
         "FEISHU_WEBHOOK_URL": _get_env_str("FEISHU_WEBHOOK_URL") or feishu.get("webhook_url", ""),
         # 钉钉
@@ -309,6 +311,10 @@ def _print_notification_sources(config: Dict) -> None:
     """打印通知渠道配置来源信息"""
     notification_sources = []
     max_accounts = config["MAX_ACCOUNTS_PER_CHANNEL"]
+
+    if config.get("MARKPOST_URL"):
+        source = "环境变量" if os.environ.get("MARKPOST_URL") else "配置文件"
+        notification_sources.append(f"Markpost({source})")
 
     if config["FEISHU_WEBHOOK_URL"]:
         accounts = parse_multi_account_config(config["FEISHU_WEBHOOK_URL"])
