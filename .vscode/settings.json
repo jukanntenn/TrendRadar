@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": false,
+  "editor.defaultFormatter": null,
+  "[python]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "never",
+      "source.organizeImports.ruff": "never"
+    },
+    "editor.formatOnSave": false,
+    "editor.defaultFormatter": null
+  }
+}

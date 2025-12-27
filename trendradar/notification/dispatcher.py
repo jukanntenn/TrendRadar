@@ -20,6 +20,8 @@ from trendradar.core.config import (
 )
 
 from .senders import (
+    build_markpost_link,
+    send_to_feishu_brief,
     send_to_bark,
     send_to_dingtalk,
     send_to_email,
@@ -27,8 +29,10 @@ from .senders import (
     send_to_ntfy,
     send_to_slack,
     send_to_telegram,
+    upload_to_markpost,
     send_to_wework,
 )
+from .renderer import render_feishu_brief, render_markpost_content
 
 
 class NotificationDispatcher:
@@ -85,9 +89,14 @@ class NotificationDispatcher:
 
         # 飞书
         if self.config.get("FEISHU_WEBHOOK_URL"):
-            results["feishu"] = self._send_feishu(
-                report_data, report_type, update_info, proxy_url, mode
-            )
+            if self.config.get("MARKPOST_URL"):
+                results["feishu"] = self._send_feishu_brief(
+                    report_data, report_type, update_info, proxy_url, mode
+                )
+            else:
+                results["feishu"] = self._send_feishu(
+                    report_data, report_type, update_info, proxy_url, mode
+                )
 
         # 钉钉
         if self.config.get("DINGTALK_WEBHOOK_URL"):
@@ -193,6 +202,57 @@ class NotificationDispatcher:
                 batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
                 split_content_func=self.split_content_func,
                 get_time_func=self.get_time_func,
+            ),
+        )
+
+    def _send_feishu_brief(
+        self,
+        report_data: Dict,
+        report_type: str,
+        update_info: Optional[Dict],
+        proxy_url: Optional[str],
+        mode: str,
+    ) -> bool:
+        """发送飞书简报（完整内容上传 Markpost）"""
+        markpost_url = self.config.get("MARKPOST_URL", "")
+        if not markpost_url:
+            return self._send_feishu(report_data, report_type, update_info, proxy_url, mode)
+
+        markpost_markdown = render_markpost_content(
+            report_data=report_data,
+            update_info=update_info,
+            mode=mode,
+            reverse_content_order=self.config.get("REVERSE_CONTENT_ORDER", False),
+            get_time_func=self.get_time_func,
+        )
+
+        upload_result = upload_to_markpost(
+            markpost_url=markpost_url,
+            body_markdown=markpost_markdown,
+            title=report_type,
+            proxy_url=proxy_url,
+        )
+
+        if not upload_result:
+            return self._send_feishu(report_data, report_type, update_info, proxy_url, mode)
+
+        post_link = build_markpost_link(markpost_url, upload_result["id"])
+        brief_markdown = render_feishu_brief(
+            report_data=report_data,
+            report_type=report_type,
+            post_link=post_link,
+            update_info=update_info,
+        )
+
+        return self._send_to_multi_accounts(
+            channel_name="飞书",
+            config_value=self.config["FEISHU_WEBHOOK_URL"],
+            send_func=lambda url, account_label: send_to_feishu_brief(
+                webhook_url=url,
+                brief_markdown=brief_markdown,
+                report_type=report_type,
+                proxy_url=proxy_url,
+                account_label=account_label,
             ),
         )
 

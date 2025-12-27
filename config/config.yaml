@@ -137,6 +137,7 @@ notification:
   #   • Email already supports multiple recipients (comma-separated), unchanged
   #
   webhooks:
+    markpost_url: "" # Markpost 上传 URL（格式：https://markpost.example.com/your_post_key）
     feishu_url: "" # 飞书机器人的 webhook URL（多账号用 ; 分隔）
     dingtalk_url: "" # 钉钉机器人的 webhook URL（多账号用 ; 分隔）
     wework_url: "" # 企业微信机器人的 webhook URL（多账号用 ; 分隔）
