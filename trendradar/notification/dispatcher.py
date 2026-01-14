@@ -39,6 +39,8 @@ from .renderer import (
     render_rss_feishu_content,
     render_rss_dingtalk_content,
     render_rss_markdown_content,
+    render_markpost_content,
+    render_feishu_brief,
 )
 
 # 类型检查时导入，运行时不导入（避免循环导入）
